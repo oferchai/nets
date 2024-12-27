@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "otel-app"
+    static_configs:
+      - targets: ["host.docker.internal:5179"] # Replace 5000 with your app's port

@@ -1,0 +1,35 @@
+{
+  "name": "C# Dev Container with MSSQL and Jaeger",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "settings": {
+    "editor.formatOnSave": true,
+    "dotnet.defaultRuntimeVersion": "9.0"
+  },
+  "extensions": [
+    "ms-dotnettools.csharp",
+    "ms-azuretools.vscode-docker",
+    "adashen.vscode-toml",
+    "microsoft.sql"
+  ],
+  "forwardPorts": [5000, 5001, 1433, 6831, 16686],
+  "postCreateCommand": "dotnet restore",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "rider": {
+      "settings": {
+        "rider.plugins.enabled": ["com.intellij.plugins.docker"]
+      }
+    }
+  },
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "app"
+}

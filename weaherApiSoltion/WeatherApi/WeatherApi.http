@@ -1,0 +1,32 @@
+@WeatherApi_HostAddress = http://localhost:5179
+
+
+GET {{WeatherApi_HostAddress}}/weather/weatherforecast
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+If-None-Match: "638705488791821452-6000"
+
+
+#traceparent: 00-075e6e9d45151d029d2c3c600de3b743-e5f8cf886b87442f-01
+
+#Accept-Encoding: gzip, deflate, br, zstd
+#Accept-Language: en-US,en;q=0.9,da-DK;q=0.8,da;q=0.7,he-IL;q=0.6,he;q=0.5
+#Cache-Control: max-age=0
+#Connection: keep-alive
+#Cookie: .Aspire.Dashboard.Antiforgery=CfDJ8CXoVzs3JfpKtbe7gh_1mJI9SRWEeRs4nI1Ir8B3Hq9xRMcp9c_xrTdDqczzajBek5QG0ZC_zTeTv8iMxTdJOZYxN6t3xWrz0U8noaEOjz11NX1RCqynpXdA4tipZCQ2E0dLmwauaAqqIyqWtkLzGIE; .AspNetCore.Antiforgery.0dPoMSFWg54=CfDJ8CXoVzs3JfpKtbe7gh_1mJJeqY9odTg5FDxtQT3IbDvHhqtADVURnBaPM0UFoSsMzpCgp8KsRfn4ZIDytBJhZr8Ozmq4IEGT7ji4mwngUWanmJ6bQmHO85hwpsSgFg9HI_7nh64F4XySXjFYxBQE4bo
+#Host: localhost:5179
+#If-None-Match: "638704804602029905-6000"
+#x-trace-id: 075e6e9d45151d029d2c3c600de3b743
+#Sec-Fetch-Dest: document
+#Sec-Fetch-Mode: navigate
+#Sec-Fetch-Site: none
+#Sec-Fetch-User: ?1
+#Upgrade-Insecure-Requests: 1
+#User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+#sec-ch-ua: "Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"
+#sec-ch-ua-mobile: ?0
+#sec-ch-ua-platform: "macOS"
+
+
+
+### 63a918503cef5781
+###
