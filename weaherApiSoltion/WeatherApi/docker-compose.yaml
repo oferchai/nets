@@ -1,4 +1,9 @@
 version: '3.8'
+
+#networks:
+#  my_custom_network: # Define a custom network
+#    driver: bridge   # Default network driver
+
 services:
   app:
     build:
@@ -12,8 +17,13 @@ services:
       - mssql
       - jaeger
     environment: # Add environment variables here
-      ConnectionStrings__DefaultConnection: "Server=d-mssql,9000;Database=tests;User Id=sa;Password=Test@123;TrustServerCertificate=True;"
-
+      ConnectionStrings__DefaultConnection: "Server=d-mssql,1433;Database=master;User Id=sa;Password=Test@123;TrustServerCertificate=True;"
+      ASPNETCORE_HTTP_PORTS: 5179
+      Jaeger__AgentHost: d-jaeger
+      Jaeger__AgentPort: 6831
+      
+    #networks:
+    #  - my_custom_network # Attach to the custom network
   mssql:
     image: cagrin/azure-sql-edge-arm64:latest
   
@@ -21,14 +31,19 @@ services:
     environment:
       SA_PASSWORD: "Test@123"
       ACCEPT_EULA: "Y"
-    ports:
-      - "9001:1433"
+    expose:
+      - "1433"
+      - "1431"
     volumes:
       - mssql-data:/var/opt/mssql
+    #networks:
+    #  - my_custom_network # Attach to the custom network
 
   jaeger:
     image: jaegertracing/all-in-one:1.45
     container_name: d-jaeger
+    expose: 
+    - "6831/udp"
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
     ports:
@@ -37,6 +52,8 @@ services:
       - "14268:14268"   # Collector
       - "14250:14250"   # gRPC
       - "9411:9411"     # Zipkin
+    #networks:
+    #  - my_custom_network # Attach to the custom network
 
 volumes:
   mssql-data:

@@ -6,6 +6,8 @@ using WhratherApi.Dto;
 
 public class WeatherDbContext : DbContext
 {
+    public WeatherDbContext(DbContextOptions<WeatherDbContext> options):base(options)
+    {}
     public DbSet<WeatherRecord> WeatherRecords { get; set; }
 
     protected override void OnModelCreating(ModelBuilder mb)
@@ -16,15 +18,21 @@ public class WeatherDbContext : DbContext
         mb.AddOutboxMessageEntity();*/
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
-        => options.UseSqlServer("Server=localhost,9000;Database=tests;User Id=sa;Password=Test@123;TrustServerCertificate=True;");
-
-    public static void seedDatabase() 
+    /*protected override void OnConfiguring(DbContextOptionsBuilder options)
+        => options.UseSqlServer("Server=d-mssql,1433;Database=master;User Id=sa;Password=Test@123;TrustServerCertificate=True;");
+    */
+    public  void seedDatabase() 
     {
         
 
-        using var context = new WeatherDbContext();
-        context.Database.EnsureCreated();
+        
+        
+        Database.EnsureCreated();
+
+        // Check if the table exists and if it is empty
+        if (WeatherRecords.Any())
+            return;
+        
 
         var cities = new[]
         {
@@ -34,7 +42,7 @@ public class WeatherDbContext : DbContext
         var rnd = new Random();
        for (int i = 0; i<1000 ; i++)
        {
-            context.WeatherRecords.Add(new WeatherRecord
+            WeatherRecords.Add(new WeatherRecord
             {
                 Location = cities[rnd.Next(0,cities.Count()-1)],
                 Temperature = rnd.NextDouble(),
@@ -43,7 +51,7 @@ public class WeatherDbContext : DbContext
             });
             
         }
-        context.SaveChanges();
+        SaveChanges();
 
         Console.WriteLine("Database initialized and seeded!");
     }

@@ -11,22 +11,24 @@ using WhratherApi.Dto;
 public  class MinimalApi
 {
     private readonly ActivitySource _activitySource;
+    private readonly WeatherDbContext _weatherDbContext;
 
     public  MinimalApi(ActivitySource activitySource)
     {
         _activitySource = activitySource;
+        
     }
     public void buildApiMap(WebApplication webApplication)
     {
         var grp = webApplication.MapGroup("weather").UseDelta();
-        grp.MapGet("/weatherforecast",async () =>
+        grp.MapGet("/weatherforecast",async (WeatherDbContext context) =>
             {
 
                 var forecast = new List<WeatherRecord>();
                 using var activity = _activitySource.StartActivity("CustomTraceExample");
                 activity?.SetTag("uri", "weatherforecast");
 
-                await using var context = new WeatherDbContext();
+                
                 forecast = context.WeatherRecords.ToList();
                 if( activity!=null) Console.WriteLine($"Adding trace {activity.TraceId}");
                 activity?.AddEvent(new ActivityEvent("Trace operation completed"));
@@ -41,7 +43,7 @@ public  class MinimalApi
             using var activity = _activitySource.StartActivity("CustomTraceExample");
             activity?.SetTag("uri", "weatherforecastByCity");
 
-            using var context = new WeatherDbContext();
+            
             var forecast = await ctx.WeatherRecords.Where(w => EF.Functions.Like(w.Location, $"%{city}%")).ToListAsync();
             if( activity!=null) Console.WriteLine($"    Adding trace {activity.TraceId}");
             activity?.AddEvent(new ActivityEvent("Trace operation completed"));

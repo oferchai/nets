@@ -28,24 +28,124 @@ namespace WaetherApi
 
         public static void Main( string[] args )
         {
-// WeatherDbContext.seedDatabase();
             var builder = WebApplication.CreateBuilder(args);
+            builder.Configuration
+                .SetBasePath(Directory.GetCurrentDirectory())
 
-            var t = (SqlConnection)new WeatherDbContext().Database.GetDbConnection();
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true) // Priority 2: appsettings.json
+                .AddEnvironmentVariables();
+            
+            
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+                                   ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+            Console.WriteLine($"using connectionString: {connectionString}");
+            // Register DbContext with the configured connection string
+            builder.Services.AddDbContext<WeatherDbContext>(options =>
+                options.UseSqlServer(connectionString));
             builder.Services.AddOpenApi();
-            builder.Services.AddSingleton<SqlConnection>(_ => (SqlConnection)new WeatherDbContext().Database.GetDbConnection());
-            builder.Services.AddDbContext<WeatherDbContext>();
+            builder.Services.AddSingleton<SqlConnection>(_ => new SqlConnection(connectionString));
+            //builder.Services.AddDbContext<WeatherDbContext>();
 
-// Create a Meter for custom metrics
-            var meter = new Meter("MyAppMetrics", "1.0.0");
-            var customCounter = meter.CreateCounter<long>("test_metric", "count", "A test metric that changes every 5 seconds.");
-            ActivitySource activitySource = new ActivitySource("CustomTraceSource");
-            builder.Services.AddSingleton<ActivitySource>(provider => activitySource);
+            
             builder.Services.AddSingleton<MinimalApi>();
 
+            AddOpenTel(builder);
+
+            AddMassTrans(builder);
+
+           
+
+            var app = builder.Build();
+
+            // Manually create a scope and seed the database
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
+                dbContext.seedDatabase(); // Pass the dbContext to the seed method
+            }
+            
+            
+            
+            //create the /metrics endpoint
+            app.MapPrometheusScrapingEndpoint();
+
+
+
+        AddTimerFunction();
+
+        // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment())
+            {
+                app.MapOpenApi();
+                app.MapScalarApiReference();
+            }
+
+            app.UseHttpsRedirection();
+            app.UseMiddleware<TraceIdMiddleware>();
+
+
+            app.Services.GetRequiredService<MinimalApi>().buildApiMap(app);
+
+
+
+            app.Run();
+
+            
+        }
+
+        private static void AddTimerFunction()
+        {
+            // Background task to update the metric every 5 seconds
+            var meter = new Meter("MyAppMetrics", "1.0.0");
+            var customCounter = meter.CreateCounter<long>("test_metric", "count", "A test metric that changes every 5 seconds.");
+
+            var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+            _ = Task.Run(async () =>
+            {
+                var random = new Random();
+                while (await timer.WaitForNextTickAsync())
+                {
+                    var incrementValue = random.Next(1, 10); // Simulate a random change
+                    customCounter.Add(incrementValue);
+                    Console.WriteLine($"Updated test_metric by {incrementValue}");
+                }
+            });
+        }
+
+        private static void AddMassTrans(WebApplicationBuilder builder)
+        {
+            builder.Services.AddMassTransit(x =>
+            {
+                // Use Kafka Rider for message publishing
+                x.AddRider(rider =>
+                {
+                    rider.UsingKafka((context, kafka) =>
+                    {
+                        kafka.Host("localhost:9092"); // Specify Kafka broker
+                    });
+                });
+                x.UsingInMemory((context, cfg) => { cfg.ConfigureEndpoints(context); });
+
+                //x.AddEntityFrameworkOutbox<WeatherDbContext>( o=>o.UseSqlServer() );
+
+            });
+        }
+
+        private static void AddOpenTel(WebApplicationBuilder builder)
+        {
+            // Create a Meter for custom metrics
+            ActivitySource activitySource = new ActivitySource("CustomTraceSource");
+            builder.Services.AddSingleton<ActivitySource>(provider => activitySource);
+            var jaegerConfig = builder.Configuration.GetSection("Jaeger").Get<JaegerConfig>();
+
+            // Check if Jaeger settings are available
+            if (jaegerConfig == null)
+            {
+                throw new InvalidOperationException("Jaeger configuration is missing in appsettings.json.");
+            }
+            
+            Console.WriteLine($"Using Jaeger config: {jaegerConfig.AgentHost}:{jaegerConfig.AgentPort}");
+            
             builder.Services.AddOpenTelemetry()
                 .WithMetrics(metrics =>
                 {
@@ -78,75 +178,20 @@ namespace WaetherApi
                         )
                         .AddJaegerExporter(o =>
                         {
-                            o.AgentHost = "localhost";
-                            o.AgentPort = 6831; // Default port for Jaeger
+                            o.AgentHost = jaegerConfig.AgentHost;
+                            o.AgentPort = jaegerConfig.AgentPort; // Default port for Jaeger
                         });
 
                     //.AddConsoleExporter();
 
                 });
-
-            builder.Services.AddMassTransit(x =>
-            {
-                // Use Kafka Rider for message publishing
-                x.AddRider(rider =>
-                {
-                    rider.UsingKafka((context, kafka) =>
-                    {
-                        kafka.Host("localhost:9092"); // Specify Kafka broker
-                    });
-                });
-                x.UsingInMemory((context, cfg) => { cfg.ConfigureEndpoints(context); });
-
-                //x.AddEntityFrameworkOutbox<WeatherDbContext>( o=>o.UseSqlServer() );
-
-            });
-
-            builder.Configuration
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddEnvironmentVariables() // Priority 1: Environment variables
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true); // Priority 2: appsettings.json
-
-
-            var app = builder.Build();
-
-//create the /metrics endpoint
-            app.MapPrometheusScrapingEndpoint();
-
-
-
-// Background task to update the metric every 5 seconds
-            var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-            _ = Task.Run(async () =>
-            {
-                var random = new Random();
-                while (await timer.WaitForNextTickAsync())
-                {
-                    var incrementValue = random.Next(1, 10); // Simulate a random change
-                    customCounter.Add(incrementValue);
-                    Console.WriteLine($"Updated test_metric by {incrementValue}");
-                }
-            });
-
-// Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-                app.MapScalarApiReference();
-            }
-
-            app.UseHttpsRedirection();
-            app.UseMiddleware<TraceIdMiddleware>();
-
-
-            app.Services.GetRequiredService<MinimalApi>().buildApiMap(app);
-
-
-
-            app.Run();
-
-            
         }
+    }
+    
+    public class JaegerConfig
+    {
+        public string AgentHost { get; set; }
+        public int AgentPort { get; set; }
     }
 
 
@@ -174,5 +219,7 @@ namespace WaetherApi
             // Call the next middleware
             await _next(context);
         }
+        
+        
     }
 }
